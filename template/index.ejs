@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.5.1/socket.io.min.js"></script>
+</head>
+
+<body>
+    <div class="jumbotron text-center">
+        <h1>Websocket Client</h1>
+        <p>Establish a connection to websocket</p>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-3">
+                <h2> Socket Token</h2>
+                <form>
+                    <div class="form-group">
+                        <label for="exampleFormControlInput1">Application Name</label>
+                        <!-- <input id="input-app-name" type="text" class="form-control" id="exampleFormControlInput1"
+                            placeholder="UMS | LMS"> -->
+
+                        <select name="input-app-name" id="input-app-name" class="dropdown-toggle ">
+                            <option value="">Select Option</option>
+                            <option value="UMS">UMS</option>
+                            <option value="LMS">LMS</option>
+                            <option value="CXMS">CXMS</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exampleFormControlTextarea1"> identity</label>
+                        <input type="email" id="input-identity" class="form-control" rows="3"></input>
+                    </div>
+                    <div class="form-group">
+                        <button id="btn-token" type="button" class="btn btn-primary">Generate Token</button>
+                    </div>
+                    <div id="input-generate-token-div" class="form-group" style="display: none;">
+                        <textarea id="input-generate-token" class="form-control" rows="9"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="col-lg-2">
+            </div>
+            <div class="col-lg-6">
+                <h2> Connect Socket</h2>
+                <form>
+                    <div class="form-group">
+                        <label for="exampleFormControlTextarea1"> Token</label>
+                        <textarea id="input-token" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <button id="connect-btn" type="button" class="btn btn-danger">Connect</button>
+                    </div>
+                    <div class="form-group" id="status-div" style="display: none;">
+                        <div id="status" class="alert alert-success" role="alert">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var baseUrl = "<%= baseUrl %>";
+        var webSocketUrl = "<%= webSocketUrl %>";
+        var connected = false;
+
+        $(document).ready(function () {
+            $('.dropdown-toggle').dropdown()
+        });
+
+
+        document.getElementById("btn-token").addEventListener("click", function () {
+            const email = document.getElementById("input-identity").value;
+            const appName = document.getElementById("input-app-name").value;
+            document.getElementById("input-identity").value = '';
+            document.getElementById("input-app-name").value = '';
+            generateToken(appName, email);
+        });
+
+
+        document.getElementById("connect-btn").addEventListener("click", function () {
+            const token = new String(document.getElementById("input-token").value);
+            document.getElementById("input-token").value = '';
+            initWebSocket(token.trim());
+        });
+
+
+        var websocket;
+        // WEBSOCKET =============== API GATEWAY START
+        function initWebSocket(token) {
+            let wsUrl = " wss://mml9ee62te.execute-api.ap-south-1.amazonaws.com/dev"; // add params email to url
+            if (wsUrl.trim()) {
+                setStatus('Connecting...');
+                ws = new WebSocket(wsUrl+`?token=${token}`);
+                initWebSocketsEvents();
+                }
+            }
+            function initWebSocketsEvents() {
+                ws.onopen = function (data) {
+                    // document.getElementById("status").innerHTML = `Connected :- Application : ${data.application}  Identity : ${data.identity}`;
+                    // document.getElementById("status-div").style = "display: block;";
+
+                    setStatus('Connection is opened (connected...)');
+                    connected = true;
+                };
+
+                ws.onmessage = function (evt) {
+                    let message = evt.data;
+                    console.log('Received a message from the server!', message);
+                    alert(JSON.stringify(message || {}));
+                    // addMessageToList(message);
+                };
+
+                ws.onclose = function () {
+                    connected = false;
+                    setStatus('Connection is closed...');
+                };
+
+                ws.onerror = function (error) {
+                    console.error(error);
+                    setStatus('Error occurred, check the console!');
+                };
+            }
+            function setStatus(status) {
+                // statusElement.textContent = status; //need to add
+            }
+            function sendMessage() {
+                if (connected) {
+                    let message = messageInput.value;
+                    if (message.trim()) {
+                        ws.send(JSON.stringify({action: 'onmessage', message: JSON.stringify({message, action: 'broadcast', group: 'ums'})}));
+                    }
+                }
+            }
+
+            function closeConnection(){
+                if(connected) {
+                    ws.close();
+                }
+            }
+        // WEBSOCKET =============== API GATEWAY END
+
+        function generateToken(appName, identity) {
+            fetch(`${baseUrl}/token?application=${appName}&email=${identity}`,
+                {
+                    method: "GET",
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                }
+            ).then(async response => {
+                const { token } = await response.json();
+                document.getElementById("input-generate-token").value = token;
+                document.getElementById("input-generate-token-div").style = "display: block;";
+
+            })
+                .catch(error => {
+                    // handle the error
+                    alert('something went wrong in generating token');
+                });
+        }
+
+    </script>
+</body>
+
+</html>

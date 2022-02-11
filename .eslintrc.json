@@ -1,0 +1,11 @@
+{
+    "parserOptions": {
+      "ecmaVersion": 2018
+    },
+    "rules": {
+      "my-lint/async-func-name": "warn",
+      "quotes": ["warn", "single"],
+      "camelcase": [2, {"properties": "always"}]
+    },
+    "plugins": ["my-lint"]
+  }

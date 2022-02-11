@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+
+    <div id="root"></div>
+
+    <script type="text/javascript">
+
+    </script>
+
+    <script type="text/babel">
+        var baseUrl = "<%= baseUrl %>";
+        const { useState, useEffect } = React
+
+        function App() {
+
+            const [ws, setWs] = useState(null);
+            const [identity, setIdentity] = useState('');
+            const [message, setMessage] = useState('');
+            const [notificationType, setNotificationType] = useState('');
+            const [application, setApplication] = useState('');
+            const [connected, setConnected] = useState(false);
+
+            const reset = () => {
+                debugger;
+                setApplication('');
+                setMessage('');
+                setNotificationType('');
+                setApplication('');
+                setIdentity('');
+            }
+
+            useEffect(()=>{
+                if(ws)
+                    initWebSocketsEvents();
+            },[ws])
+
+            const initWebSocket = (token) => {
+                let wsUrl = " wss://mml9ee62te.execute-api.ap-south-1.amazonaws.com/dev"; // add params email to url
+                
+                if (wsUrl.trim()) {
+                    let websocketObject = new WebSocket(wsUrl+`?token=${token}`);
+                    setWs(websocketObject);
+                }
+            }
+            const connectToWebsocket = async () =>{
+                try{
+                    const token = await fetch(`${baseUrl}/token?application=admin&email=admin@byjus.com`,{
+                        method: "GET",
+                        headers: {
+                            'Content-Type': 'application/json; charset=utf-8'
+                        },
+                    }).then(async (response)=>{
+                        const { token } = await response.json();
+                        return token;
+                    });
+                    console.log(token);
+                    initWebSocket(token);
+                }catch(e)
+                {
+                    console.log("error=========>", e);
+                }
+            }
+
+            const initWebSocketsEvents = () => {
+                ws.onopen = function (data) {
+                    setConnected(true);
+                };
+
+                ws.onmessage = function (evt) {
+                    let data = evt.data;
+                    console.log('Received a message from the server!', data);
+                    alert(JSON.stringify(data || {}));
+                };
+
+                ws.onclose = function () {
+                    setConnected(false);
+                };
+
+                ws.onerror = function (error) {
+                    console.error(error);
+                };
+            }
+            const sendMessage = () => {
+                if (connected) {
+                    ws.send(JSON.stringify({action: 'onmessage', message: JSON.stringify({message: message.trim(), group: application || '', recipient: identity })}));
+                }
+            }
+            const closeConnection = () => {
+                if(connected) {
+                    ws.close();
+                }
+            }
+
+            useEffect(() => {
+                connectToWebsocket();
+              return () => ws.close();
+            }, []);
+            
+
+
+            const optionsNotification = [
+                {
+                    name: 'Select',
+                    value: null,
+                },
+                {
+                    name: 'Broadcast',
+                    value: 'broadcast',
+                },
+                {
+                    name: 'Direct',
+                    value: 'direct',
+                }
+            ];
+
+            const optionsApplication = [
+                {
+                    name: 'Select',
+                    value: null,
+                },
+                {
+                    name: 'UMS',
+                    value: 'UMS',
+                },
+                {
+                    name: 'LMS',
+                    value: 'LMS',
+                },
+                {
+                    name: 'CXMS',
+                    value: 'CXMS',
+                }
+            ];
+
+            return <>
+                <div className="jumbotron text-center">
+                    <h1>Websocket Client</h1>
+                    <p>Publish a message to connected clients</p>
+                </div>
+                <div className="container">
+                    <div className="row">
+                        <div className="col-lg-3"> </div>
+                        <div className="col-lg-6">
+                            <form>
+                                <div className="form-group">
+                                    <label htmlFor="exampleFormControlTextarea1"> To Identity</label>
+                                    <input type="text" className="form-control" rows="3" value={identity} onChange={(e) => {
+                                        setIdentity(e.target.value);
+                                    }} />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="exampleFormControlInput1">Application Name</label>
+                                    <br />
+                                    <select name="input-app-name" id="input-app-name" className="dropdown-toggle" value={application} onChange={(e) => {
+                                        setApplication(e.target.value)
+                                    }}>
+                                        {optionsApplication.map(o => {
+                                            return <option key={o.value} value={o.value}>{o.name}</option>
+                                        })}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="exampleFormControlInput1">Notfication Type</label>
+                                    <br />
+                                    <select name="input-app-name" id="input-app-name" className="dropdown-toggle " value={notificationType} onChange={(e) => setNotificationType(e.target.value)}>
+                                        {optionsNotification.map(o => {
+                                            return <option key={o.value} value={o.value}>{o.name}</option>
+                                        })}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="exampleFormControlTextarea1"> Message</label>
+                                    <input type="text" className="form-control" rows="3" value={message} onChange={(e) => setMessage(e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <button id="connect-btn" type="button" className="btn btn-success" onClick={sendMessage}>Notify</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div className="col-lg-3"></div>
+                    </div>
+                </div>
+
+            </>
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'))
+    </script>
+
+</body>
+
+</html>
